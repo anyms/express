@@ -6,13 +6,27 @@ import app.spidy.express.data.Route
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.io.PrintWriter
+import java.lang.Exception
 import java.lang.StringBuilder
 import java.net.InetAddress
 import java.net.ServerSocket
 import java.net.Socket
+import java.net.SocketException
 import kotlin.concurrent.thread
 
-class Express {
+class Express(
+    private val port: Int = 5000,
+    private val host: String = "127.0.0.1",
+    private val debug: Boolean = false
+) {
+    private var serverSocket: ServerSocket? = null
+
+    init {
+        serverSocket = ServerSocket(port, 50, InetAddress.getByName(host))
+        serverSocket!!.reuseAddress = true
+    }
+
+
     private val routes = ArrayList<Route>()
     private var keepRunning = false
 
@@ -28,7 +42,9 @@ class Express {
         routes.add(Route(path = p, callback = callback, method = "POST"))
     }
 
-    fun kill() {
+    fun terminate() {
+        serverSocket?.close()
+        routes.clear()
         keepRunning = false
     }
 
@@ -42,6 +58,7 @@ class Express {
         var line = bufferedReader.readLine()
 
         while (line != "") {
+            if (line == null) break
             if (line.contains("HTTP/1.")) {
                 val nodes = line.split(" ")
                 request.method = nodes[0]
@@ -90,20 +107,23 @@ class Express {
         client.close()
     }
 
-    fun run(port: Int = 5000, host: String = "127.0.0.1", debug: Boolean = false) {
+    fun run() {
         keepRunning = true
-        val socket = ServerSocket(port, 50, InetAddress.getByName(host))
-        socket.reuseAddress = true
 
         while (keepRunning) {
-            val client = socket.accept()
-            handleRequest(client)
+            try {
+                val client = serverSocket!!.accept()
+                handleRequest(client)
+            } catch (e: SocketException) {
+                break
+            }
         }
+        serverSocket?.close()
     }
 
-    fun runAsync(port: Int = 5000, host: String = "127.0.0.1", debug: Boolean = false) {
+    fun runAsync() {
         thread {
-            run(port, host, debug)
+            run()
         }
     }
 }
