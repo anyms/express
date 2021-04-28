@@ -32,8 +32,8 @@ class Response(private val client: Socket) {
         var length: Int
         while (stream.read(buf).also { length = it } > 0) {
             printWriter.write(buf, 0, length)
+            printWriter.flush()
         }
-        printWriter.flush()
     }
 
 //    fun streamTest(s: String) {
